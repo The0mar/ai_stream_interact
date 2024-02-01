@@ -1,3 +1,4 @@
+import os
 from typing import Union
 from dataclasses import dataclass
 
@@ -53,11 +54,14 @@ class GeminiStreamInteract(LLMStreamInteractBase):
 
     @interact_on_key("c")
     def interactive_chat(self):
-        while True:
-            self._interactive_mode = True
+        self._interactive_mode = True
+        while self._interactive_mode:
             prompt = input("Prompt:")
-            if prompt == "exit":
+            if prompt == "identify_mode":
                 break
+            if prompt.lower() in ["quit", "q"]:
+                os._exit(1)
+
             if hasattr(self, "chat"):
                 history = self.chat.history
             else:
@@ -113,7 +117,7 @@ class GeminiStreamInteract(LLMStreamInteractBase):
                 description is a bit more detailed description of the object.
                 score is how confident you are in your object identification. This MUST be a value between 0 and 1 where 0 is the lowest score and 1 is the highest.
 
-                After you do the above task I will later follow up with some further questions, but let's proceed with the above task first.
+                After you do the above task I will later follow up with some further questions. For the follow up questions don't revise your answer for the original object identification task unless explicitly asked to do so. Also make your answers concise without further explanations or confidence scores unless asked to give more detail.
                 """
             ]
             prompt.extend(images)
@@ -170,11 +174,11 @@ class GeminiStreamInteract(LLMStreamInteractBase):
             history = []
         else:
             model = self.text_model
+            # a dirty hack combining both gemini-pro & gemini-pro-vision as gemini-pro-vision does not currently support multi-turn chat.
             if history:
                 history = _get_text_only_history(history)
             else:
                 history = []
-        print(history)
         self.chat = model.start_chat(history=history)
         return self.chat.send_message(
             prompt,
