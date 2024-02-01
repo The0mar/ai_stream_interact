@@ -1,3 +1,4 @@
+import os
 import cv2
 import threading
 
@@ -23,6 +24,7 @@ class StreamerMixin:
                     self._stop()
                     self.cap.release()
                     cv2.destroyWindow("video")
+                    os._exit(1)
 
     def _stop(self):
         self._stopped = True
