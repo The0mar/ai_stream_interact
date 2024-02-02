@@ -1,13 +1,10 @@
 import os
 import re
-import glob
 import time
 import inspect
-import tempfile
+from types import GeneratorType
 from dataclasses import dataclass
 
-import cv2
-from PIL import Image
 from pynput import keyboard
 from rich import print
 from rich.panel import Panel
@@ -17,19 +14,11 @@ from rich.markdown import Markdown
 from dotenv import load_dotenv
 
 from llm_stream_interact.streamer import Streamer
+from llm_stream_interact.utils import img_utils, tts_utils
 
 
-def _img_arrays_to_pil_imgs(frames):
-    """ Writes cv np.array frames and reloads them in PIL.image format """
-    with tempfile.TemporaryDirectory() as tmp:
-        for n, frame in enumerate(frames):
-            cv2.imwrite(f"{tmp}/frame{n}.jpg", frame)
-        images_list = []
-        image_paths = glob.glob(f"{tmp}/*.jpg")
-        for path in image_paths:
-            img = Image.open(path)
-            images_list.append(img)
-    return images_list
+# DEFAULT_TTS_MODEL = "tts_models/en/ljspeech/tacotron2-DCA"
+# DEFAULT_TTS_MODEL = "tts_models/en/jenny/jenny"
 
 
 @dataclass
@@ -52,12 +41,14 @@ class LLMStreamInteractBase:
 
     def __init__(
         self,
-        interaction_frames_config: InteractionFramesConfig
+        interaction_frames_config: InteractionFramesConfig,
+        tts_model: str = DEFAULT_TTS_MODEL
     ):
         self.console = Console()
         self._interaction_frames_config = interaction_frames_config
         self._key_listeners = []
         self._api_key_dot_env_name = ""
+        self._tts = self._init_tts(tts_model)
 
     def start(self):
         self._entry_point_interact()
@@ -66,10 +57,21 @@ class LLMStreamInteractBase:
         self.streamer, self._cam_index = self._init_streamer()
         self._choose_mode()
 
+    def _process_llm_outputs(self, output):
+        if isinstance(output, GeneratorType):
+            for out in output:
+                self.console.print(out, style="bold #6edb9d")
+                tts_utils.play(tts=self._tts, text=out)
+        elif isinstance(output, str):
+            self.console.print(output, style="bold #6edb9d")
+        else:
+            raise Exception("Invalid return type from self._llm_interactive_mode(prompt). Expected either types.Generator or str type.")
+
     @interact_on_key("d")
     def llm_detect_object_mode(self):
         images = self._get_prompt_imgs_from_stream()
-        self._llm_detect_object(images, self.custom_base_prompt)
+        output = self._llm_detect_object(images, self.custom_base_prompt)
+        self._process_llm_outputs(output)
 
     @interact_on_key("c")
     def llm_custom_prompt_detect_object_mode(self):
@@ -80,7 +82,8 @@ class LLMStreamInteractBase:
             prompt = Prompt.ask("[bold][#6765e6]Prompt")
             if prompt == "exit":
                 break
-            self._llm_interactive_mode(prompt)
+            output = self._llm_interactive_mode(prompt)
+            self._process_llm_outputs(output)
         self._choose_mode()
 
     @interact_on_key("i")
@@ -131,6 +134,7 @@ class LLMStreamInteractBase:
         self.console.print(Panel(message, style="#e079d4"))
         self.console.print("\n\n")
         self._mode = Prompt.ask("Choose a mode", choices=["detect", "detect_custom", "interact", "quit", "d", "dc", "i", "q"], show_choices=False)
+        self.custom_base_prompt = None
         if self._mode.startswith("d"):
             if self._mode in ("detect_custom", "dc"):
                 custom_prompt = Prompt.ask("[bold][#6766e6]Custom Prompt[#6765e6][bold]")
@@ -190,7 +194,7 @@ class LLMStreamInteractBase:
             interaction_frames.append(self.streamer._frame)
             print(f"{len(interaction_frames)} frames loaded...")
             time.sleep(self._interaction_frames_config.frame_capture_interval)
-        return _img_arrays_to_pil_imgs(interaction_frames)
+        return img_utils._img_arrays_to_pil_imgs(interaction_frames)
 
     def _get_on_press_interact_methods(self):
         press_interact_methods = []
@@ -199,3 +203,10 @@ class LLMStreamInteractBase:
             if method_name != "_get_on_press_interact_methods" and "on_press_function" in method_signature:
                 press_interact_methods.append(method)
         return press_interact_methods
+
+    def _init_tts(self, tts_model):
+        self.console.print("Initializing Text To Speech Model...", style="#e079d4")
+        self._tts_model = tts_model
+        tts = tts_utils.TextToSpeech(model=self._tts_model)
+        tts.init_model()
+        return tts

@@ -9,6 +9,24 @@ from google.ai.generativelanguage import Content
 
 from llm_stream_interact.llm_interact_base import LLMStreamInteractBase
 
+DEFAULT_OBJ_DETECT_PROMPT = """
+I will give you 3 images of the same object and I want you to identify the object. You MUST the output in the following json format without any extra text or details:
+
+```
+{
+    object: <object identification goes here>,
+    description: <detailed description goes here>,
+    score: <score goes here>
+}
+```
+
+object should contain a very brief identification of what the object is.
+description is a bit more detailed description of the object.
+score is how confident you are in your object identification. This MUST be a value between 0 and 1 where 0 is the lowest score and 1 is the highest.
+
+After you do the above task I will later follow up with some further questions. For the follow up questions don't revise your answer for the original object identification task unless explicitly asked to do so. Also make your answers concise without further explanations or confidence scores unless asked to give more detail.
+"""
+
 
 def _get_text_only_history(history):
     text_only_history = []
@@ -46,7 +64,10 @@ class GeminiStreamInteract(LLMStreamInteractBase):
         self.multimodal_model = genai.GenerativeModel('gemini-pro-vision')
         self.console = Console()
 
-    def _llm_interactive_mode(self, prompt):
+    def _llm_interactive_mode(
+        self,
+        prompt
+    ):
         if hasattr(self, "chat"):
             history = self.chat.history
         else:
@@ -79,7 +100,7 @@ class GeminiStreamInteract(LLMStreamInteractBase):
             ]
         )
         for chunk in response:
-            self.console.print(chunk.text, style="#6edb9d")
+            yield chunk.text
 
     def _llm_detect_object(
         self,
@@ -91,21 +112,10 @@ class GeminiStreamInteract(LLMStreamInteractBase):
         else:
             prompt = [
                 """
-                I will give you 3 images of the same object and I want you to identify the object. You MUST the output in the following json format without any extra text or details:
-
-                ```
-                {
-                    object: <object identification goes here>,
-                    description: <detailed description goes here>,
-                    score: <score goes here>
-                }
-                ```
-
-                object should contain a very brief identification of what the object is.
-                description is a bit more detailed description of the object.
-                score is how confident you are in your object identification. This MUST be a value between 0 and 1 where 0 is the lowest score and 1 is the highest.
-
-                After you do the above task I will later follow up with some further questions. For the follow up questions don't revise your answer for the original object identification task unless explicitly asked to do so. Also make your answers concise without further explanations or confidence scores unless asked to give more detail.
+                I will give you 3 images of the same object and I want you to identify the object. You MUST generate the output in the following format without any extra text:
+                Object Detected: <object identification goes here>
+                Detailed Description: <detailed description goes here>
+                Confidence Level: <A score of how confident you are in your object identification. This MUST be a value between 0 and 1 where 0 is the lowest score and 1 is the highest.>
                 """
             ]
         prompt.extend(images)
@@ -136,7 +146,7 @@ class GeminiStreamInteract(LLMStreamInteractBase):
             ]
         )
         for chunk in response:
-            self.console.print(chunk.text)
+            yield chunk.text
 
     @backoff.on_exception(
         backoff.constant,
