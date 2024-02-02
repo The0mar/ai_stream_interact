@@ -1,4 +1,3 @@
-import os
 from typing import Union
 from dataclasses import dataclass
 
@@ -8,10 +7,7 @@ from ratelimit import limits, RateLimitException
 import google.generativeai as genai
 from google.ai.generativelanguage import Content
 
-from llm_stream_interact.llm_interact_base import (
-    LLMStreamInteractBase,
-    interact_on_key
-)
+from llm_stream_interact.llm_interact_base import LLMStreamInteractBase
 
 
 def _get_text_only_history(history):
@@ -38,69 +34,61 @@ class GeminiStreamInteract(LLMStreamInteractBase):
 
     def __init__(
         self,
-        api_key,
-        cam_index,
-        interaction_frames_config
+        interaction_frames_config,
+        api_key=None
     ):
-        super().__init__(
-            cam_index=cam_index,
-            interaction_frames_config=interaction_frames_config
-        )
-        self._llm_auth(api_key)
+        super().__init__(interaction_frames_config=interaction_frames_config)
+        self._api_key_dot_env_name = "GEMINI_API_KEY"
+        if api_key:
+            self.__api_key = api_key
+        # self._llm_auth(self.__api_key)
         self.text_model = genai.GenerativeModel('gemini-pro')
         self.multimodal_model = genai.GenerativeModel('gemini-pro-vision')
         self.console = Console()
-        self._interactive_mode = False
 
-    @interact_on_key("c")
-    def interactive_chat(self):
-        self._interactive_mode = True
-        while self._interactive_mode:
-            prompt = input("Prompt:")
-            if prompt == "identify_mode":
-                break
-            if prompt.lower() in ["quit", "q"]:
-                os._exit(1)
+    def _llm_interactive_mode(self, prompt):
+        if hasattr(self, "chat"):
+            history = self.chat.history
+        else:
+            history = []
+        response = self._llm_interact(
+            prompt=prompt,
+            multimodal=False,
+            history=history,
+            stream=True,
+            generation_config=genai.types.GenerationConfig(
+                temperature=0
+            ),
+            safety_settings=[
+                {
+                    "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                    "threshold": "BLOCK_NONE"
+                },
+                {
+                    "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                    "threshold": "BLOCK_NONE"
+                },
+                {
+                    "category": "HARM_CATEGORY_HATE_SPEECH",
+                    "threshold": "BLOCK_NONE"
+                },
+                {
+                    "category": "HARM_CATEGORY_HARASSMENT",
+                    "threshold": "BLOCK_NONE"
+                }
+            ]
+        )
+        for chunk in response:
+            self.console.print(chunk.text, style="#6edb9d")
 
-            if hasattr(self, "chat"):
-                history = self.chat.history
-            else:
-                history = []
-            response = self._llm_interact(
-                prompt=prompt,
-                multimodal=False,
-                history=history,
-                stream=True,
-                generation_config=genai.types.GenerationConfig(
-                    temperature=0
-                ),
-                safety_settings=[
-                    {
-                        "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
-                        "threshold": "BLOCK_NONE"
-                    },
-                    {
-                        "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                        "threshold": "BLOCK_NONE"
-                    },
-                    {
-                        "category": "HARM_CATEGORY_HATE_SPEECH",
-                        "threshold": "BLOCK_NONE"
-                    },
-                    {
-                        "category": "HARM_CATEGORY_HARASSMENT",
-                        "threshold": "BLOCK_NONE"
-                    }
-                ]
-            )
-            for chunk in response:
-                self.console.print(chunk.text)
-        self._interactive_mode = False
-
-    @interact_on_key("i")
-    def identify_object(self):
-        if not self._interactive_mode:
-            images = self._get_prompt_imgs_from_stream()
+    def _llm_detect_object(
+        self,
+        images,
+        custom_base_prompt=None
+    ):
+        if custom_base_prompt:
+            prompt = [custom_base_prompt]
+        else:
             prompt = [
                 """
                 I will give you 3 images of the same object and I want you to identify the object. You MUST the output in the following json format without any extra text or details:
@@ -120,35 +108,35 @@ class GeminiStreamInteract(LLMStreamInteractBase):
                 After you do the above task I will later follow up with some further questions. For the follow up questions don't revise your answer for the original object identification task unless explicitly asked to do so. Also make your answers concise without further explanations or confidence scores unless asked to give more detail.
                 """
             ]
-            prompt.extend(images)
-            response = self._llm_interact(
-                prompt=prompt,
-                multimodal=True,
-                stream=True,
-                generation_config=genai.types.GenerationConfig(
-                    temperature=0
-                ),
-                safety_settings=[
-                    {
-                        "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
-                        "threshold": "BLOCK_NONE"
-                    },
-                    {
-                        "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                        "threshold": "BLOCK_NONE"
-                    },
-                    {
-                        "category": "HARM_CATEGORY_HATE_SPEECH",
-                        "threshold": "BLOCK_NONE"
-                    },
-                    {
-                        "category": "HARM_CATEGORY_HARASSMENT",
-                        "threshold": "BLOCK_NONE"
-                    }
-                ]
-            )
-            for chunk in response:
-                self.console.print(chunk.text)
+        prompt.extend(images)
+        response = self._llm_interact(
+            prompt=prompt,
+            multimodal=True,
+            stream=True,
+            generation_config=genai.types.GenerationConfig(
+                temperature=0
+            ),
+            safety_settings=[
+                {
+                    "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                    "threshold": "BLOCK_NONE"
+                },
+                {
+                    "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                    "threshold": "BLOCK_NONE"
+                },
+                {
+                    "category": "HARM_CATEGORY_HATE_SPEECH",
+                    "threshold": "BLOCK_NONE"
+                },
+                {
+                    "category": "HARM_CATEGORY_HARASSMENT",
+                    "threshold": "BLOCK_NONE"
+                }
+            ]
+        )
+        for chunk in response:
+            self.console.print(chunk.text)
 
     @backoff.on_exception(
         backoff.constant,
