@@ -1,7 +1,9 @@
 import os
 import re
 import time
+import queue
 import inspect
+import threading
 from types import GeneratorType
 from dataclasses import dataclass
 
@@ -13,17 +15,15 @@ from rich.console import Console
 from rich.markdown import Markdown
 from dotenv import load_dotenv
 
-from llm_stream_interact.streamer import Streamer
-from llm_stream_interact.utils import img_utils, tts_utils
-
-
-# DEFAULT_TTS_MODEL = "tts_models/en/ljspeech/tacotron2-DCA"
-# DEFAULT_TTS_MODEL = "tts_models/en/jenny/jenny"
+from ai_stream_interact.streamer import Streamer
+from ai_stream_interact.utils import img_utils
+from ai_stream_interact.tts.tts_base import TextToSpeechBase
+from ai_stream_interact.tts.tts_utils import play
 
 
 @dataclass
 class InteractionFramesConfig:
-    nframes_interact: str  # number of video frames to use for llm interaction
+    nframes_interact: str  # number of video frames to use for ai interaction
     frame_capture_interval: float  # n seconds to sleep between capturing frames
 
 
@@ -38,74 +38,95 @@ def interact_on_key(key):
 
 
 class LLMStreamInteractBase:
+    """Base class for Model Interactions. The class implements the skeleton for the cli menu and model interactions
+    The below methods are to be implemented in child classes per each model's API:
+        - _ai_auth: should implement the authentication for the relevant model.
+        - _ai_interact: should implement the most basic interaction for a given model where it takes a prompt input (and potentially other **kwargs for model configs) and returns the model's repsponse.
+        - _ai_interactive_mode: Same as the base _ai_interact but should keep track of chat history.
+        - _ai_detect_object: should implement a function that does object detection in an image and returns either a string or a Generator (for streaming models).
+    """
 
     def __init__(
         self,
         interaction_frames_config: InteractionFramesConfig,
-        tts_model: str = DEFAULT_TTS_MODEL
+        tts_instance: TextToSpeechBase
     ):
-        self.console = Console()
+        self._console_interface = Console(style="bold #e079d4")
+        self._console_model_output = Console(style="bold #6edb9d")
+        self._console_user_prompt = Console(style="bold #6765e6")
+        self._console_success = Console(style="bold green")
+        self._console_warning = Console(style="bold red")
         self._interaction_frames_config = interaction_frames_config
         self._key_listeners = []
         self._api_key_dot_env_name = ""
-        self._tts = self._init_tts(tts_model)
+        self._tts_instance = tts_instance
+        self._speech_synthesis_queue = queue.Queue()
+
+    def _ai_interact(self):
+        raise NotImplementedError()
+
+    def _ai_auth(self):
+        raise NotImplementedError()
+
+    def _ai_detect_object(self):
+        raise NotImplementedError()
+
+    def _ai_interactive_mode(self):
+        raise NotImplementedError()
 
     def start(self):
         self._entry_point_interact()
         self._get_api_key()
-        self._llm_auth(self.__api_key)
+        self._ai_auth(self.__api_key)
         self.streamer, self._cam_index = self._init_streamer()
+        self._start_speech_synthesis_thread()
         self._choose_mode()
 
-    def _process_llm_outputs(self, output):
-        if isinstance(output, GeneratorType):
-            for out in output:
-                self.console.print(out, style="bold #6edb9d")
-                tts_utils.play(tts=self._tts, text=out)
-        elif isinstance(output, str):
-            self.console.print(output, style="bold #6edb9d")
-        else:
-            raise Exception("Invalid return type from self._llm_interactive_mode(prompt). Expected either types.Generator or str type.")
+    def _start_speech_synthesis_thread(self):
+        threading.Thread(target=self._run_speech_synthesis, args=(self._speech_synthesis_queue,), daemon=True).start()
+
+    def _run_speech_synthesis(self, speech_synethesis_queue):
+        while True:
+            text = speech_synethesis_queue.get()
+            play(tts=self._tts_instance, text=text)
 
     @interact_on_key("d")
-    def llm_detect_object_mode(self):
+    def ai_detect_object_mode(self):
         images = self._get_prompt_imgs_from_stream()
-        output = self._llm_detect_object(images, self.custom_base_prompt)
-        self._process_llm_outputs(output)
+        output = self._ai_detect_object(images, self.custom_base_prompt)
+        assert isinstance(output, (str, GeneratorType)), "output should be of type str or Generator"
+        if isinstance(output, str):  # model output is expected to be either text or a Generator for stream output
+            output = [output]
+        for out in output:
+            self._speech_synthesis_queue.put(out)
+            self._console_model_output.print(out)
 
-    @interact_on_key("c")
-    def llm_custom_prompt_detect_object_mode(self):
-        self.custom_base_prompt = Prompt.ask("[bold][#6766e6]Custom Prompt[#6765e6][bold]")
-
-    def llm_interactive_mode(self):
+    def ai_interactive_mode(self):
         while True:
-            prompt = Prompt.ask("[bold][#6765e6]Prompt")
+            prompt = Prompt.ask("Prompt", console=self._console_user_prompt)
             if prompt == "exit":
                 break
-            output = self._llm_interactive_mode(prompt)
-            self._process_llm_outputs(output)
+            output = self._ai_interactive_mode(prompt)
+            assert isinstance(output, (str, GeneratorType)), "output should be of type str or Generator"
+            if isinstance(output, str):  # model output is expected to be either text or a Generator for stream output
+                output = [output]
+            for out in output:
+                self._speech_synthesis_queue.put(out)
+                self._console_model_output.print(out)
         self._choose_mode()
+
+    @interact_on_key("c")
+    def ai_custom_prompt_detect_object_mode(self):
+        self.custom_base_prompt = Prompt.ask("Custom Prompt", console=self._console_user_prompt)
 
     @interact_on_key("i")
     def _switch_to_interactive_mode(self):
         self.console.print("Running in interact mode.")
-        self.llm_interactive_mode()
+        self.ai_interactive_mode()
 
     @interact_on_key("m")
     def _switch_to_choose_mode(self):
         self._choose_mode()
-
-    def _llm_detect_object(self):
-        raise NotImplementedError()
-
-    def _llm_interactive_mode(self):
-        raise NotImplementedError()
-
-    def _llm_interact(self):
-        raise NotImplementedError()
-
-    def _llm_auth(self):
-        raise NotImplementedError()
 
     def _entry_point_interact(self):
         welcome = """# Welcome to LLM Stream Interact!"""
@@ -130,30 +151,30 @@ class LLMStreamInteractBase:
           - (c) Will allow for typing in a custom prompt before running (d)etect.
           - (q) Will quit the app.
         """
-        self.console.print("\n\n")
-        self.console.print(Panel(message, style="#e079d4"))
-        self.console.print("\n\n")
+        self._console_interface.print("\n\n")
+        self._console_interface.print(Panel(message))
+        self._console_interface.print("\n\n")
         self._mode = Prompt.ask("Choose a mode", choices=["detect", "detect_custom", "interact", "quit", "d", "dc", "i", "q"], show_choices=False)
         self.custom_base_prompt = None
         if self._mode.startswith("d"):
             if self._mode in ("detect_custom", "dc"):
-                custom_prompt = Prompt.ask("[bold][#6766e6]Custom Prompt[#6765e6][bold]")
+                custom_prompt = Prompt.ask("Custom Prompt", console=self._console_user_prompt)
                 self.custom_base_prompt = custom_prompt
 
             if self.streamer._video_stream_is_stopped:
                 self.streamer.start_video_stream()
-            self.start_key_listeners()
+            self._start_key_listeners()
             self.console.print("Running in detect mode. Press (d) to detect an object")
 
         if self._mode.startswith("i"):
             self.console.print("Running in interact mode. Type 'exit' to go back to previous menu.")
-            self.llm_interactive_mode()
+            self.ai_interactive_mode()
 
         if self._mode.startswith("q"):
             os._exit(1)
 
     def _get_api_key(self):
-        api_key = Prompt.ask("[bold][#e079d4]API key(press Enter to fetch from .env instead)[#e079d4][bold]", password=True)
+        api_key = Prompt.ask("API key (press Enter to fetch from .env instead)", password=True, console=self._console_interface)
         if not api_key and self._api_key_dot_env_name:
             self.console.print(f"No API key provided thus will try to fetch key ({self._api_key_dot_env_name}) from .env", style="white")
             load_dotenv()
@@ -164,18 +185,18 @@ class LLMStreamInteractBase:
 
     def _init_streamer(self):
         while True:
-            cam_index = Prompt.ask("[bold][#e079d4]Set cam index[#e079d4][bold]")
+            cam_index = Prompt.ask("Set cam index", console=self._console_interface)
             valid_index = re.match("[0-9]+$", str(cam_index))
             if valid_index:
                 streamer = Streamer(int(cam_index))
                 if streamer._success:
-                    self.console.print("Cam detected successfully...", style="bold green")
+                    self._console_success.print("Cam detected successfully...")
                     break
                 self.console.print("Unable to detect cam at this index, please try again", style="bold red")
             self.console.print("Cam index must be an integer.", style="bold red")
         return streamer, cam_index
 
-    def start_key_listeners(self):
+    def _start_key_listeners(self):
         on_press_methods = self._get_on_press_interact_methods()
         if not on_press_methods:
             raise Exception("Can't call start method if no methods are decorated with interact_on_key")
@@ -203,10 +224,3 @@ class LLMStreamInteractBase:
             if method_name != "_get_on_press_interact_methods" and "on_press_function" in method_signature:
                 press_interact_methods.append(method)
         return press_interact_methods
-
-    def _init_tts(self, tts_model):
-        self.console.print("Initializing Text To Speech Model...", style="#e079d4")
-        self._tts_model = tts_model
-        tts = tts_utils.TextToSpeech(model=self._tts_model)
-        tts.init_model()
-        return tts

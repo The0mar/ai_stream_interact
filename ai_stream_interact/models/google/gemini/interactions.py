@@ -7,7 +7,7 @@ from ratelimit import limits, RateLimitException
 import google.generativeai as genai
 from google.ai.generativelanguage import Content
 
-from llm_stream_interact.llm_interact_base import LLMStreamInteractBase
+from ai_stream_interact.ai_interact_base import AIStreamInteractBase
 
 DEFAULT_OBJ_DETECT_PROMPT = """
 I will give you 3 images of the same object and I want you to identify the object. You MUST the output in the following json format without any extra text or details:
@@ -48,23 +48,24 @@ class RateLimitsConfig:
 gemini_ratelimits_config = RateLimitsConfig(calls=1, period=2, max_retries=5)
 
 
-class GeminiStreamInteract(LLMStreamInteractBase):
+class GeminiStreamInteract(AIStreamInteractBase):
 
     def __init__(
         self,
         interaction_frames_config,
-        api_key=None
+        api_key=None,
+        **kwargs
     ):
-        super().__init__(interaction_frames_config=interaction_frames_config)
+        super().__init__(interaction_frames_config=interaction_frames_config, **kwargs)
         self._api_key_dot_env_name = "GEMINI_API_KEY"
         if api_key:
             self.__api_key = api_key
-        # self._llm_auth(self.__api_key)
+        # self._ai_auth(self.__api_key)
         self.text_model = genai.GenerativeModel('gemini-pro')
         self.multimodal_model = genai.GenerativeModel('gemini-pro-vision')
         self.console = Console()
 
-    def _llm_interactive_mode(
+    def _ai_interactive_mode(
         self,
         prompt
     ):
@@ -72,7 +73,7 @@ class GeminiStreamInteract(LLMStreamInteractBase):
             history = self.chat.history
         else:
             history = []
-        response = self._llm_interact(
+        response = self._ai_interact(
             prompt=prompt,
             multimodal=False,
             history=history,
@@ -102,7 +103,7 @@ class GeminiStreamInteract(LLMStreamInteractBase):
         for chunk in response:
             yield chunk.text
 
-    def _llm_detect_object(
+    def _ai_detect_object(
         self,
         images,
         custom_base_prompt=None
@@ -119,7 +120,7 @@ class GeminiStreamInteract(LLMStreamInteractBase):
                 """
             ]
         prompt.extend(images)
-        response = self._llm_interact(
+        response = self._ai_interact(
             prompt=prompt,
             multimodal=True,
             stream=True,
@@ -158,7 +159,7 @@ class GeminiStreamInteract(LLMStreamInteractBase):
         exception=RateLimitException
     )
     @limits(calls=gemini_ratelimits_config.calls, period=gemini_ratelimits_config.period)
-    def _llm_interact(
+    def _ai_interact(
         self,
         prompt,
         multimodal=False,
@@ -185,5 +186,5 @@ class GeminiStreamInteract(LLMStreamInteractBase):
             safety_settings=safety_settings
         )
 
-    def _llm_auth(self, api_key):
+    def _ai_auth(self, api_key):
         genai.configure(api_key=api_key)
