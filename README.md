@@ -17,8 +17,10 @@ Note that pip install will also install [coqui-ai](https://github.com/coqui-ai/T
 1. Make sure you already have an API key for Gemini. (or get one [here](https://ai.google.dev/tutorials/setup)).
 2. Have a USB camera connected.
 3. run `aisi_gemini` to enter the AI Stream Interact🧠🎞️ main menu. _(note that you can always go back to the main menu from the video stream by press "**m**" while having the video stream focused.)_
-
-There are 3 interaction modes available:
+4. You will be asked to enter your API key.
+5. You will be asked to enter your camera index. Currently there is no straight forward way to identify the exact index for your camera's name due to how open-cv enumerates such indicies so you'll have to just try a few times till you get the right one if you have multiple camers connected. If you have one camera connected you can try passing "**-1**" as in most cases it'll just pick that one.
+   
+Now you're in!. You have access to 3 types of interactions as of today.
 
 ### Detect Default:
 This fires up a window with your camera stream and whenever you press "**d**" will identify the object the camera is looking at. (Make sure to press "**d**" with the camera window focused and not your terminal).
