@@ -1,0 +1,11 @@
+backoff==2.2.1
+opencv_contrib_python==4.9.0.80
+Pillow==10.2.0
+pydub==0.25.1
+pygrabber==0.2
+pynput==1.7.6
+python-dotenv==1.0.1
+ratelimit==2.2.1
+rich==13.7.0
+setuptools==68.1.2
+TTS==0.22.0
