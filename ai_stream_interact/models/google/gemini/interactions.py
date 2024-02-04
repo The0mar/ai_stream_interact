@@ -9,24 +9,6 @@ from google.ai.generativelanguage import Content
 
 from ai_stream_interact.ai_interact_base import AIStreamInteractBase
 
-DEFAULT_OBJ_DETECT_PROMPT = """
-I will give you 3 images of the same object and I want you to identify the object. You MUST the output in the following json format without any extra text or details:
-
-```
-{
-    object: <object identification goes here>,
-    description: <detailed description goes here>,
-    score: <score goes here>
-}
-```
-
-object should contain a very brief identification of what the object is.
-description is a bit more detailed description of the object.
-score is how confident you are in your object identification. This MUST be a value between 0 and 1 where 0 is the lowest score and 1 is the highest.
-
-After you do the above task I will later follow up with some further questions. For the follow up questions don't revise your answer for the original object identification task unless explicitly asked to do so. Also make your answers concise without further explanations or confidence scores unless asked to give more detail.
-"""
-
 
 def _get_text_only_history(history):
     text_only_history = []
