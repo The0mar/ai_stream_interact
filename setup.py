@@ -6,5 +6,5 @@ setup(
     author='Omar Aref',
     author_email='oa_dev_acc_92@hotmail.com',
     packages=find_packages(),
-    python_requires'>=3.9'
+    python_requires='>=3.9'
 )
