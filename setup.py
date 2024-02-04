@@ -2,12 +2,25 @@ from setuptools import setup, find_packages
 
 setup(
     name="ai_stream_interact",
-    version='0.0.1',
+    version='0.0.3',
     author='Omar Aref',
     author_email='oa_dev_acc_92@hotmail.com',
     description='An model agnostic extensible package that allows for AI & LLM interactions on a video stream',
     long_description_content_type="text/markdown",
     packages=find_packages(),
+    install_requires=[
+        'backoff',
+        'opencv_contrib_python',
+        'Pillow',
+        'pydub',
+        'pygrabber',
+        'pynput',
+        'python-dotenv',
+        'ratelimit',
+        'rich',
+        'TTS',
+        'google-generativeai>=0.3.2'
+    ],
     entry_points={
         'console_scripts': [
             'aisi_gemini=ai_stream_interact.models.google.gemini.gemini:main'

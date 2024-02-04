@@ -9,3 +9,5 @@ ratelimit==2.2.1
 rich==13.7.0
 setuptools==68.1.2
 TTS==0.22.0
+rich==13.7.0
+google-generativeai==0.3.2
