@@ -3,9 +3,15 @@ This package can easily be extended to accommodate different LLMs, but for this 
 
 **Note: This is a basic Alpha version that's been written & tested in Ubuntu only so it may have unexpected behavior with other operating systems.**
 
+<br>
+<br>
+
+
 ## Example Usage:
 
-- Step1: make sure you have a USB camera connected and that it is detected
+1. Make sure you already have an API key for Gemini. (or get one [here](https://ai.google.dev/tutorials/setup)).
+2. Have a USB camera connected.
+3. Take AI Stream Interact 🧠🎞️ for a spin!
 
 ### Detect Default:
 ![](https://github.com/The0mar/ai_stream_interact/blob/main/gifs/detect.gif)
