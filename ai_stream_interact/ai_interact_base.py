@@ -145,7 +145,7 @@ class AIStreamInteractBase:
         [bold]Choose one of the below modes:[bold]
         - 'detect' mode will start a cam video stream where you can start detecting objects by pressing (d).
         - 'detect_custom' mode is the same as detect mode but will allow you to customize the base prompt before asking the model to detect the object.
-        - 'interact' mode will allow for a back and forth chat with the AI over the detected object.
+        - 'interact' mode will allow for a back and forth chat with the model.
         - 'quit' will exit
 
         Keys while in stream:
