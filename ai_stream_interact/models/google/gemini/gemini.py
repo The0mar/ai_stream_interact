@@ -1,6 +1,6 @@
 from ai_stream_interact.ai_interact_base import InteractionFramesConfig
 from ai_stream_interact.models.google.gemini.interactions import GeminiStreamInteract
-from ai_stream_interact.tts.coqui_ai import TextToSpeechCoqui
+# from ai_stream_interact.tts.coqui_ai import TextToSpeechCoqui
 
 
 def main():
