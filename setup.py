@@ -8,7 +8,11 @@ setup(
     description='An model agnostic extensible package that allows for AI & LLM interactions on a video stream',
     long_description_content_type="text/markdown",
     packages=find_packages(),
-    # install_requires=['opencv-python', 'pyautogui', 'pyaudio'],
+    entry_points={
+        'console_scripts': [
+            'aisi_gemini=ai_stream_interact.models.google.gemini.gemini:main'
+        ]
+    },
     keywords=['python', 'ai', 'llm', 'artificial intelligence', 'large language models', 'nlp', 'natural language processing', 'video', 'video stream'],
     classifiers=[
         "Development Status :: 4 - Beta",
