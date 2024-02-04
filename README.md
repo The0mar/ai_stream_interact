@@ -11,11 +11,18 @@ This package can easily be extended to accommodate different LLMs, but for this 
 
 1. Make sure you already have an API key for Gemini. (or get one [here](https://ai.google.dev/tutorials/setup)).
 2. Have a USB camera connected.
-3. Take AI Stream Interact 🧠🎞️ for a spin!
+3. run `python3 `
+
+There are 3 interaction modes available:
 
 ### Detect Default:
+This fires up a window with your camera stream and whenever you press "**d**" will identify the object the camera is looking at. (Make sure to press "**d**" with the camera window focused and not your terminal).
 ![](https://github.com/The0mar/ai_stream_interact/blob/main/gifs/detect.gif)
 
 
 ### Detect with Custom Prompt:
+Use this to write up a custom prompt before showing the model an object for custom interactions beyond just identifying objects.
 ![](https://github.com/The0mar/ai_stream_interact/blob/main/gifs/detect_custom.gif)
+
+### Interactions:
+This just allows for back & forth chat with the model.
