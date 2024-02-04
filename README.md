@@ -7,7 +7,7 @@ This package can easily be extended to accommodate different LLMs, but for this 
 <br>
 
 ## Installation:
-- `pip install ai-stream-interact
+- `pip install ai-stream-interact`
 
 Note that pip install will also install [coqui-ai](https://github.com/coqui-ai/TTS) as future versions will include Text To Speech. (It is already implemented but sometimes presents unexpected behavior so it's turned off by default for now.)
 
