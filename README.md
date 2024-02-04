@@ -31,3 +31,9 @@ Use this to write up a custom prompt before showing the model an object for cust
 
 ### Interactions:
 This just allows for back & forth chat with the model.
+
+## Troubleshooting:
+
+### Errors:
+
+- `google.api_core.exceptions.FailedPrecondition: 400 User location is not supported for the API use.`
