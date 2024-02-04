@@ -1,4 +1,4 @@
-# AI Stream Interact 🧠🎞️ aims to provide basic LLM interaction capabilities with video streams.
+# AI Stream Interact🧠🎞️ aims to provide basic LLM interaction capabilities with video streams.
 This package can easily be extended to accommodate different LLMs, but for this first version interactions were implemented only for [Google's Gemini Pro & Vision Pro Models](https://ai.google.dev/tutorials)
 
 **Note: This is a basic Alpha version that's been written & tested in Ubuntu only so it may have unexpected behavior with other operating systems.**
@@ -6,12 +6,17 @@ This package can easily be extended to accommodate different LLMs, but for this 
 <br>
 <br>
 
+## Installation:
+- `pip install ai-stream-interact
+
+Note that pip install will also install [coqui-ai](https://github.com/coqui-ai/TTS) as future versions will include Text To Speech. (It is already implemented but sometimes presents unexpected behavior so it's turned off by default for now.)
+
 
 ## Example Usage:
 
 1. Make sure you already have an API key for Gemini. (or get one [here](https://ai.google.dev/tutorials/setup)).
 2. Have a USB camera connected.
-3. run `python3 `
+3. run `aisi_gemini` to enter the AI Stream Interact🧠🎞️ main menu. _(note that you can always go back to the main menu from the video stream by press "**m**" while having the video stream focused.)_
 
 There are 3 interaction modes available:
 
