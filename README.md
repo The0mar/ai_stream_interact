@@ -36,4 +36,4 @@ This just allows for back & forth chat with the model.
 
 ### Errors:
 
-- `google.api_core.exceptions.FailedPrecondition: 400 User location is not supported for the API use.`
+- `google.api_core.exceptions.FailedPrecondition: 400 User location is not supported for the API use.`: **This is specific to Gemini as they currently do not provide general availability to all regions, so you need to make sure your region is supported [https://ai.google.dev/available_regions#available_regions]()**
