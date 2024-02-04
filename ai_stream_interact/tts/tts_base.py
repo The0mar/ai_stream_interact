@@ -1,9 +1,12 @@
+import re
 import os
+import queue
 import tempfile
 import subprocess
 
 from pydub.utils import get_player_name
 from ai_stream_interact.tts.printout_utils import supress_printouts
+
 
 
 class TextToSpeechBase:
@@ -48,21 +51,24 @@ class TextToSpeechBase:
         with supress_printouts():
             return self._model_init()
 
-    def run(self, text, tts_from="file"):
+    def run(self, incoming_text_queue):
         if not self._tts:
             raise Exception("Please run TextToSpeechBase.model_init() first before running TextToSpeechBase.run()")
-        if tts_from == "file":
+        print("here")
+        while True:
+            text = incoming_text_queue.get()
             with tempfile.TemporaryDirectory() as tmp:
                 file_name = os.path.join(tmp, "output.wav")
-                self._run(text, file_name)
+                with supress_printouts():
+                    self._run(text, file_name)
                 self._play_with_ffplay(file_name)
 
     def _play_with_ffplay(self, file_name):
         PLAYER = get_player_name()
-
         devnull = open(os.devnull, 'w')
-        subprocess.call(
+        subprocess.check_call(
             [PLAYER, "-nodisp", "-autoexit", file_name],
             stdout=devnull,
-            stderr=devnull
+            stderr=devnull,
+            # shell=False
         )

@@ -49,7 +49,7 @@ class AIStreamInteractBase:
     def __init__(
         self,
         interaction_frames_config: InteractionFramesConfig,
-        tts_instance: TextToSpeechBase
+        tts_instance: TextToSpeechBase = None
     ):
         self._console_interface = Console(style="bold #e079d4")
         self._console_model_output = Console(style="bold #6edb9d")
@@ -59,9 +59,12 @@ class AIStreamInteractBase:
         self._interaction_frames_config = interaction_frames_config
         self._key_listeners = []
         self._api_key_dot_env_name = ""
-        self._tts_instance = tts_instance
-        self._complete_sentences_queue = queue.Queue()
-        self._incomplete_sentences_queue = queue.Queue()
+        if tts_instance:
+            self._tts_instance = tts_instance
+            self._running_with_speech_synthesis = True
+            self._speech_synthesis_queue = queue.Queue()
+        else:
+            self._running_with_speech_synthesis = False
 
     def _ai_interact(self):
         raise NotImplementedError()
@@ -80,44 +83,26 @@ class AIStreamInteractBase:
         self._get_api_key()
         self._ai_auth(self.__api_key)
         self.streamer, self._cam_index = self._init_streamer()
+        if self._running_with_speech_synthesis:
+            threading.Thread(
+                target=self._tts_instance.run,
+                kwargs={'incoming_text_queue': self._speech_synthesis_queue},
+                daemon=True
+            ).start()
+            self._console_interface.print("Running with model speech synthesis...")
+        else:
+            self._console_interface.print("No TTS model instance passed thus running in text mode only...")
         self._choose_mode()
 
-    def _start_speech_synthesis_thread(self):
-        threading.Thread(target=self._run_speech_synthesis, args=(), daemon=True).start()
-
-    def _run_speech_synthesis(self):
-        while True:
-            if not self._presenting_in_progressand self._complete_sentences_queue.empty():
-                break
-            text = self._complete_sentences_queue.get()
-            if not text:
-                raise Exception("Got empty string for speech synthesis..")  # for easier debugging as it throws a difficult to spot error when it happens
-            play(tts=self._tts_instance, text=text)
-
-    def _queue_sentences(self, text):
-        sentences = re.split("(?<=[a-z]\.)[ \n]", text)  # split text on lower case + "." ends.
-        sentences = [sent for sent in sentences if sent]
-        if not self._incomplete_sentences_queue.empty():
-            partial_sent = self._incomplete_sentences_queue.get()
-            sentences[0] = partial_sent + " " + sentences[0]
-        if re.match("(.*?)[a-z]\.$", sentences[-1]):
-            self._complete_sentences_queue.put(" ".join(sentences))
-        elif len(sentences) > 1:
-            self._complete_sentences_queue.put(" ".join(sentences[:-1]))
-            self._incomplete_sentences_queue.put(sentences[-1])
-        else:
-            self._incomplete_sentences_queue.put(sentences[0])
-
     def _present_model_output(self, output):
-        self._presenting_in_progress = True
         assert isinstance(output, (str, GeneratorType, list)), "output should be of type stror Generator"
         if isinstance(output, str):  # model output is expected to be either text or a Generator for stream output
             output = [output]
         for out in output:
-            self._start_speech_synthesis_thread()
-            self._queue_sentences(out)
             self._console_model_output.print(out)
-        self._presenting_in_progress = False
+            if self._running_with_speech_synthesis:
+                self._speech_synthesis_queue.put(out)
+            time.sleep(0.2)
 
     @interact_on_key("d")
     def ai_detect_object_mode(self):
