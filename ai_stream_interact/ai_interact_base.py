@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from types import GeneratorType
 from typing import Callable, Union, Tuple, List
 
-import PIL
+from PIL import Image
 from rich import print
 from rich.panel import Panel
 from rich.prompt import Prompt
@@ -232,7 +232,7 @@ class AIStreamInteractBase:
         for listener in self._key_listeners:
             listener.stop()
 
-    def _get_prompt_imgs_from_stream(self) -> List[PIL.JpegImagePlugin.JpegImageFile]:
+    def _get_prompt_imgs_from_stream(self) -> List[Image]:
         """Get image frames from running video stream to be used for model prompt."""
         interaction_frames = []
         while len(interaction_frames) < self._interaction_frames_config.nframes_interact:

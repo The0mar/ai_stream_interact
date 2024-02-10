@@ -4,10 +4,11 @@ from typing import List
 
 import cv2
 import PIL
+from PIL import Image
 import numpy as np
 
 
-def _img_arrays_to_pil_imgs(frames: np.ndarray) -> List[PIL.JpegImagePlugin.JpegImageFile]:
+def _img_arrays_to_pil_imgs(frames: np.ndarray) -> List[Image]:
     """ Writes cv np.array frames and reloads them in PIL.image format """
     with tempfile.TemporaryDirectory() as tmp:
         for n, frame in enumerate(frames):

@@ -2,11 +2,11 @@ from types import GeneratorType
 from typing import Union, List, Dict
 from dataclasses import dataclass
 
-import PIL
 import backoff
+from PIL import Image
 from rich.console import Console
-from ratelimit import limits, RateLimitException
 import google.generativeai as genai
+from ratelimit import limits, RateLimitException
 from google.ai.generativelanguage import Content
 
 from ai_stream_interact.ai_interact_base import AIStreamInteractBase
@@ -95,7 +95,7 @@ class GeminiStreamInteract(AIStreamInteractBase):
 
     def _ai_detect_object(
         self,
-        images: List[PIL.JpegImagePlugin.JpegImageFile],
+        images: List[Image],
         custom_base_prompt: str = None
     ) -> GeneratorType:
         """Detect object based on a primer prompt and a series of images following the prompt."""
