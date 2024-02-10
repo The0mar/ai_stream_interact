@@ -67,7 +67,7 @@ class AIStreamInteractBase:
         self._console_warning = Console(style=STYLE_WARNING_MESSAGES)
         self._interaction_frames_config = interaction_frames_config
         self._key_listeners = []
-        self._api_key_dot_env_name = ""
+        self._api_key_dot_env_name = "GEMINI_API_KEY"
         if tts_model_name:
             from ai_stream_interact.tts.coqui_ai import TextToSpeechCoqui  # import here only if using tts as it's a bit of a slow import
             self._tts = TextToSpeechCoqui(tts_model_name)
@@ -198,8 +198,8 @@ class AIStreamInteractBase:
         """Will attempt to get API key from user input. If user input was empty will try to get the key from .env"""
         api_key = Prompt.ask("API key (press Enter to fetch from .env instead)", password=True, console=self._console_interface)
         if not api_key and self._api_key_dot_env_name:
-            self.console.print(f"No API key provided thus will try to fetch key ({self._api_key_dot_env_name}) from .env", style="white")
-            load_dotenv()
+            self._console_warning.print(f"No API key provided thus will try to fetch key ({self._api_key_dot_env_name}) from GEMINI_API_KEY in .env")
+            load_dotenv(os.path.join(os.getcwd(), ".env"))
             api_key = os.getenv(self._api_key_dot_env_name)
         if not api_key:
             raise Exception("Unable to find an API key")
