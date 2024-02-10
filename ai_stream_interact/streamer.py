@@ -4,16 +4,17 @@ import threading
 
 
 class Streamer:
-    def __init__(self, cam_index):
+    def __init__(self, cam_index: int) -> None:
+        """Streams video from a USB camera."""
         self._cam_index = cam_index
         self.cap = cv2.VideoCapture(self._cam_index)
         self._success, self._frame = self.cap.read()
         self._video_stream_is_stopped = True
 
-    def start_video_stream(self):
+    def start_video_stream(self) -> None:
         threading.Thread(target=self._run, args=()).start()
 
-    def _run(self):
+    def _run(self) -> None:
         self._video_stream_is_stopped = False
         while not self._video_stream_is_stopped:
             if not self._success:
@@ -27,5 +28,5 @@ class Streamer:
                     cv2.destroyWindow("video")
                     os._exit(1)
 
-    def stop_video_stream(self):
+    def stop_video_stream(self) -> None:
         self._video_stream_is_stopped = True

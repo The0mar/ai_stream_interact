@@ -1,17 +1,45 @@
+import os
+import queue
+import tempfile
+import subprocess
+
+import torch
 from TTS.api import TTS
 
-from ai_stream_interact.tts.tts_base import TextToSpeechBase
+from ai_stream_interact.tts.printout_utils import supress_printouts
 
 
-class TextToSpeechCoqui(TextToSpeechBase):
+def _play_sound_w_ffmpeg(file_path: str) -> None:
+    """Plays a file using ffmpeg. Requires ffmpeg to be installed."""
+    devnull = open(os.devnull, "w")
+    subprocess.run(
+        ["ffplay", "-nodisp", "-autoexit", file_path],
+        stdout=devnull,
+        stderr=devnull,
+        shell=False
+    )
 
-    def __init__(self, model_name):
-        self._model_name = model_name
-        super().__init__()
 
-    def _model_init(self):
-        return TTS(model_name=self._model_name)
+class TextToSpeechCoqui:
+    """TTS using Coqui AI"""
 
-    def _run(self, text, file_path):
-        tts = self._tts
-        tts.tts_to_file(text=text, file_path=file_path)
+    def __init__(self, model_name: str) -> None:
+        """For a list of available model names use tts --list_models"""
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        with supress_printouts():
+            self._tts = TTS(model_name).to(device)
+
+    def tts_from_queue(self, queue: queue.Queue) -> None:
+        """Runs self.tts_from_str on a queue of incoming stream of texts."""
+        while True:
+            text = queue.get()
+            with tempfile.TemporaryDirectory() as tmp:
+                file_path = os.path.join(tmp, "output.wav")
+                self.tts_from_str(text, file_path)
+
+    def tts_from_str(self, text: str, file_path: str) -> None:
+        """Converts text to a .wav sound file then plays the file."""
+        # TODO the underlying printouts causes some weird behavior (even with supressing) where the user dialogue just freezes. Need to fix this later.
+        with supress_printouts():
+            self._tts.tts_to_file(text, file_path=file_path)
+            _play_sound_w_ffmpeg(file_path)

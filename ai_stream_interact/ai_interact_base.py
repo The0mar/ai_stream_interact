@@ -4,21 +4,29 @@ import time
 import queue
 import inspect
 import threading
-from types import GeneratorType
 from dataclasses import dataclass
+from types import GeneratorType
+from typing import Callable, Union, Tuple, List
 
-from pynput import keyboard
+import PIL
 from rich import print
 from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.console import Console
 from rich.markdown import Markdown
+from pynput import keyboard
 from dotenv import load_dotenv
 
 from ai_stream_interact.streamer import Streamer
 from ai_stream_interact.utils import img_utils
-from ai_stream_interact.tts.tts_base import TextToSpeechBase
-from ai_stream_interact.tts.tts_utils import play
+
+
+# Styles
+STYLE_INTERFACE = "bold #e079d4"
+STYLE_MODEL_OUTPUT = "bold #6edb9d"
+STYLE_USER_PROMPT = "bold #6765e6"
+STYLE_SUCCESS_MESSAGES = "bold green"
+STYLE_WARNING_MESSAGES = "bold red"
 
 
 @dataclass
@@ -27,9 +35,10 @@ class InteractionFramesConfig:
     frame_capture_interval: float  # n seconds to sleep between capturing frames
 
 
-def interact_on_key(key):
-    def on_key_press(func):
-        def wrapper(self, key_pressed):
+def interact_on_key(key: str) -> Callable:
+    """Do action on key press"""
+    def on_key_press(func: Callable) -> Callable:
+        def wrapper(self, key_pressed: str) -> None:
             """on_press_function"""
             if hasattr(key_pressed, 'char') and key_pressed.char == (key):
                 func(self)
@@ -38,7 +47,7 @@ def interact_on_key(key):
 
 
 class AIStreamInteractBase:
-    """Base class for Model Interactions. The class implements the skeleton for the cli menu and model interactions
+    """Base class for Model Interactions. The class implements the basis for the cli menu and model interactions
     The below methods are to be implemented in child classes per each model's API:
         - _ai_auth: should implement the authentication for the relevant model.
         - _ai_interact: should implement the most basic interaction for a given model where it takes a prompt input (and potentially other **kwargs for model configs) and returns the model's repsponse.
@@ -49,44 +58,49 @@ class AIStreamInteractBase:
     def __init__(
         self,
         interaction_frames_config: InteractionFramesConfig,
-        tts_instance: TextToSpeechBase = None
-    ):
-        self._console_interface = Console(style="bold #e079d4")
-        self._console_model_output = Console(style="bold #6edb9d")
-        self._console_user_prompt = Console(style="bold #6765e6")
-        self._console_success = Console(style="bold green")
-        self._console_warning = Console(style="bold red")
+        tts_model_name: str
+    ) -> None:
+        self._console_interface = Console(style=STYLE_INTERFACE)
+        self._console_model_output = Console(style=STYLE_MODEL_OUTPUT)
+        self._console_user_prompt = Console(style=STYLE_USER_PROMPT)
+        self._console_success = Console(style=STYLE_SUCCESS_MESSAGES)
+        self._console_warning = Console(style=STYLE_WARNING_MESSAGES)
         self._interaction_frames_config = interaction_frames_config
         self._key_listeners = []
         self._api_key_dot_env_name = ""
-        if tts_instance:
-            self._tts_instance = tts_instance
+        if tts_model_name:
+            from ai_stream_interact.tts.coqui_ai import TextToSpeechCoqui  # import here only if using tts as it's a bit of a slow import
+            self._tts = TextToSpeechCoqui(tts_model_name)
             self._running_with_speech_synthesis = True
             self._speech_synthesis_queue = queue.Queue()
         else:
             self._running_with_speech_synthesis = False
 
-    def _ai_interact(self):
+    def _ai_interact(self) -> None:
+        """To be implemented per model."""
         raise NotImplementedError()
 
-    def _ai_auth(self):
+    def _ai_auth(self) -> None:
+        """To be implemented per model."""
         raise NotImplementedError()
 
-    def _ai_detect_object(self):
+    def _ai_detect_object(self) -> None:
+        """To be implemented per model."""
         raise NotImplementedError()
 
-    def _ai_interactive_mode(self):
+    def _ai_interactive_mode(self) -> None:
+        """To be implemented per model."""
         raise NotImplementedError()
 
-    def start(self):
+    def start(self) -> None:
         self._entry_point_interact()
         self._get_api_key()
         self._ai_auth(self.__api_key)
         self.streamer, self._cam_index = self._init_streamer()
         if self._running_with_speech_synthesis:
             threading.Thread(
-                target=self._tts_instance.run,
-                kwargs={'incoming_text_queue': self._speech_synthesis_queue},
+                target=self._tts.tts_from_queue,
+                kwargs={"queue": self._speech_synthesis_queue},
                 daemon=True
             ).start()
             self._console_interface.print("Running with model speech synthesis...")
@@ -94,23 +108,24 @@ class AIStreamInteractBase:
             self._console_interface.print("No TTS model instance passed thus running in text mode only...")
         self._choose_mode()
 
-    def _present_model_output(self, output):
-        assert isinstance(output, (str, GeneratorType, list)), "output should be of type stror Generator"
+    def _present_model_output(self, output: Union[GeneratorType, list, str]) -> None:
+        """Presents model output. If running in text mode + TTS will also do speech synthesis out of model generated text."""
+        assert isinstance(output, (GeneratorType, list, str)), "output should be of type stror Generator"
         if isinstance(output, str):  # model output is expected to be either text or a Generator for stream output
             output = [output]
         for out in output:
             self._console_model_output.print(out)
             if self._running_with_speech_synthesis:
                 self._speech_synthesis_queue.put(out)
-            time.sleep(0.2)
+                time.sleep(0.2)
 
     @interact_on_key("d")
-    def ai_detect_object_mode(self):
+    def ai_detect_object_mode(self) -> None:
         images = self._get_prompt_imgs_from_stream()
         output = self._ai_detect_object(images, self.custom_base_prompt)
         self._present_model_output(output)
 
-    def ai_interactive_mode(self):
+    def ai_interactive_mode(self) -> None:
         while True:
             prompt = Prompt.ask("Prompt", console=self._console_user_prompt)
             if prompt == "exit":
@@ -120,7 +135,7 @@ class AIStreamInteractBase:
         self._choose_mode()
 
     @interact_on_key("c")
-    def ai_custom_prompt_detect_object_mode(self):
+    def ai_custom_prompt_detect_object_mode(self) -> None:
         self.custom_base_prompt = Prompt.ask("Custom Prompt", console=self._console_user_prompt)
 
     @interact_on_key("i")
@@ -129,16 +144,18 @@ class AIStreamInteractBase:
         self.ai_interactive_mode()
 
     @interact_on_key("m")
-    def _switch_to_choose_mode(self):
+    def _switch_to_choose_mode(self) -> None:
         self._choose_mode()
 
-    def _entry_point_interact(self):
+    def _entry_point_interact(self) -> None:
+        """Entry point menu"""
         welcome = """# Welcome to AI Stream Interact!"""
         md = Markdown(welcome, style="bold #e079d4")
         self.console.print("\n\n")
         self.console.print(md)
 
-    def _choose_mode(self):
+    def _choose_mode(self) -> None:
+        """Choose mode menu"""
         if self._key_listeners:
             self._stop_key_listeners()
         message = """
@@ -177,7 +194,8 @@ class AIStreamInteractBase:
         if self._mode.startswith("q"):
             os._exit(1)
 
-    def _get_api_key(self):
+    def _get_api_key(self) -> None:
+        """Will attempt to get API key from user input. If user input was empty will try to get the key from .env"""
         api_key = Prompt.ask("API key (press Enter to fetch from .env instead)", password=True, console=self._console_interface)
         if not api_key and self._api_key_dot_env_name:
             self.console.print(f"No API key provided thus will try to fetch key ({self._api_key_dot_env_name}) from .env", style="white")
@@ -187,7 +205,8 @@ class AIStreamInteractBase:
             raise Exception("Unable to find an API key")
         self.__api_key = api_key
 
-    def _init_streamer(self):
+    def _init_streamer(self) -> Tuple[Streamer, int]:
+        """Initialize the video stream from camera."""
         while True:
             cam_index = Prompt.ask("Set cam index", console=self._console_interface)
             valid_index = re.match("[0-9]+$", str(cam_index))
@@ -200,7 +219,7 @@ class AIStreamInteractBase:
             self.console.print("Cam index must be an integer.", style="bold red")
         return streamer, cam_index
 
-    def _start_key_listeners(self):
+    def _start_key_listeners(self) -> None:
         on_press_methods = self._get_on_press_interact_methods()
         if not on_press_methods:
             raise Exception("Can't call start method if no methods are decorated with interact_on_key")
@@ -209,11 +228,12 @@ class AIStreamInteractBase:
             listener.start()
             self._key_listeners.append(listener)
 
-    def _stop_key_listeners(self):
+    def _stop_key_listeners(self) -> None:
         for listener in self._key_listeners:
             listener.stop()
 
-    def _get_prompt_imgs_from_stream(self):
+    def _get_prompt_imgs_from_stream(self) -> List[PIL.JpegImagePlugin.JpegImageFile]:
+        """Get image frames from running video stream to be used for model prompt."""
         interaction_frames = []
         while len(interaction_frames) < self._interaction_frames_config.nframes_interact:
             interaction_frames.append(self.streamer._frame)
@@ -221,7 +241,8 @@ class AIStreamInteractBase:
             time.sleep(self._interaction_frames_config.frame_capture_interval)
         return img_utils._img_arrays_to_pil_imgs(interaction_frames)
 
-    def _get_on_press_interact_methods(self):
+    def _get_on_press_interact_methods(self) -> List[Callable]:
+        """Find all on_press_interact methods in self to create a keyboard listener for each"""
         press_interact_methods = []
         for method_name, method in inspect.getmembers(self, inspect.ismethod):
             method_signature = "\n".join(inspect.getsourcelines(method)[0])

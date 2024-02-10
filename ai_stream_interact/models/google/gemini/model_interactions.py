@@ -1,6 +1,8 @@
-from typing import Union
+from types import GeneratorType
+from typing import Union, List, Dict
 from dataclasses import dataclass
 
+import PIL
 import backoff
 from rich.console import Console
 from ratelimit import limits, RateLimitException
@@ -8,6 +10,27 @@ import google.generativeai as genai
 from google.ai.generativelanguage import Content
 
 from ai_stream_interact.ai_interact_base import AIStreamInteractBase
+from ai_stream_interact.ai_interact_base import InteractionFramesConfig
+
+
+DEFAULT_SAFETY_SETTINGS = [
+    {
+        "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+        "threshold": "BLOCK_NONE"
+    },
+    {
+        "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+        "threshold": "BLOCK_NONE"
+    },
+    {
+        "category": "HARM_CATEGORY_HATE_SPEECH",
+        "threshold": "BLOCK_NONE"
+    },
+    {
+        "category": "HARM_CATEGORY_HARASSMENT",
+        "threshold": "BLOCK_NONE"
+    }
+]
 
 
 def _get_text_only_history(history):
@@ -31,13 +54,14 @@ gemini_ratelimits_config = RateLimitsConfig(calls=1, period=2, max_retries=5)
 
 
 class GeminiStreamInteract(AIStreamInteractBase):
+    """Implements Google's gemini-pro models interactions. For now implements text, image and text + image interactions."""
 
     def __init__(
         self,
-        interaction_frames_config,
-        api_key=None,
+        interaction_frames_config: InteractionFramesConfig,
+        api_key: str = None,
         **kwargs
-    ):
+    ) -> None:
         super().__init__(interaction_frames_config=interaction_frames_config, **kwargs)
         self._api_key_dot_env_name = "GEMINI_API_KEY"
         if api_key:
@@ -49,8 +73,9 @@ class GeminiStreamInteract(AIStreamInteractBase):
 
     def _ai_interactive_mode(
         self,
-        prompt
-    ):
+        prompt: str
+    ) -> GeneratorType:
+        """Simple interactive back and forth chat mode with the model."""
         if hasattr(self, "chat"):
             history = self.chat.history
         else:
@@ -63,33 +88,17 @@ class GeminiStreamInteract(AIStreamInteractBase):
             generation_config=genai.types.GenerationConfig(
                 temperature=0
             ),
-            safety_settings=[
-                {
-                    "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
-                    "threshold": "BLOCK_NONE"
-                },
-                {
-                    "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                    "threshold": "BLOCK_NONE"
-                },
-                {
-                    "category": "HARM_CATEGORY_HATE_SPEECH",
-                    "threshold": "BLOCK_NONE"
-                },
-                {
-                    "category": "HARM_CATEGORY_HARASSMENT",
-                    "threshold": "BLOCK_NONE"
-                }
-            ]
+            safety_settings=DEFAULT_SAFETY_SETTINGS
         )
         for chunk in response:
             yield chunk.text
 
     def _ai_detect_object(
         self,
-        images,
-        custom_base_prompt=None
-    ):
+        images: List[PIL.JpegImagePlugin.JpegImageFile],
+        custom_base_prompt: str = None
+    ) -> GeneratorType:
+        """Detect object based on a primer prompt and a series of images following the prompt."""
         if custom_base_prompt:
             prompt = [custom_base_prompt]
         else:
@@ -109,24 +118,7 @@ class GeminiStreamInteract(AIStreamInteractBase):
             generation_config=genai.types.GenerationConfig(
                 temperature=0
             ),
-            safety_settings=[
-                {
-                    "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
-                    "threshold": "BLOCK_NONE"
-                },
-                {
-                    "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                    "threshold": "BLOCK_NONE"
-                },
-                {
-                    "category": "HARM_CATEGORY_HATE_SPEECH",
-                    "threshold": "BLOCK_NONE"
-                },
-                {
-                    "category": "HARM_CATEGORY_HARASSMENT",
-                    "threshold": "BLOCK_NONE"
-                }
-            ]
+            safety_settings=DEFAULT_SAFETY_SETTINGS
         )
         for chunk in response:
             yield chunk.text
@@ -143,13 +135,14 @@ class GeminiStreamInteract(AIStreamInteractBase):
     @limits(calls=gemini_ratelimits_config.calls, period=gemini_ratelimits_config.period)
     def _ai_interact(
         self,
-        prompt,
-        multimodal=False,
-        stream=True,
-        history=None,
-        generation_config=None,
-        safety_settings=None
-    ):
+        prompt: str,
+        multimodal: bool = False,
+        stream: bool = True,
+        history: genai.types.content_types.StrictContentType = None,
+        generation_config: genai.types.GenerationConfig = None,
+        safety_settings: List[Dict[str, str]] = None
+    ) -> genai.types.generation_types.GenerateContentResponse:
+        """Implements base model interaction using chat while keeping history memory."""
         if multimodal:
             model = self.multimodal_model
             history = []
@@ -168,5 +161,6 @@ class GeminiStreamInteract(AIStreamInteractBase):
             safety_settings=safety_settings
         )
 
-    def _ai_auth(self, api_key):
+    def _ai_auth(self, api_key: str) -> None:
+        """Model authentication."""
         genai.configure(api_key=api_key)

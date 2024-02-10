@@ -1,11 +1,15 @@
 from setuptools import setup, find_packages
 
+with open("README.md", "r", encoding="utf-8") as readme_file:
+    README = readme_file.read()
+
 setup(
     name="ai_stream_interact",
-    version='0.0.4',
+    version='0.0.5',
     author='Omar Aref',
     author_email='oa_dev_acc_92@hotmail.com',
     description='An model agnostic extensible package that allows for AI & LLM interactions on a video stream',
+    long_description=README,
     long_description_content_type="text/markdown",
     packages=find_packages(),
     install_requires=[
@@ -23,7 +27,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'aisi_gemini=ai_stream_interact.models.google.gemini.gemini:main'
+            'aisi_gemini=ai_stream_interact.models.google.gemini.model:main'
         ]
     },
     keywords=['python', 'ai', 'llm', 'artificial intelligence', 'large language models', 'nlp', 'natural language processing', 'video', 'video stream'],
