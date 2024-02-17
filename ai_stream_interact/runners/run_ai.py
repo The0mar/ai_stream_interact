@@ -1,8 +1,15 @@
-import os
 import argparse
-from importlib.machinery import SourceFileLoader
+import importlib
 
 from ai_stream_interact.base.ai_interact_base import InteractionFramesConfig
+
+
+def _import_from_string(name):
+    components = name.split('.')
+    mod = __import__(components[0])
+    for comp in components[1:]:
+        mod = getattr(mod, comp)
+    return mod
 
 
 def main():
@@ -31,20 +38,13 @@ def main():
     else:
         tts_model_name = None
 
-    # check if running from package endpoint or directly this script
-    cwd = os.getcwd()
-    if cwd.split("/")[-1] == "ai_stream_interact":
-        llm_path = f"ai_stream_interact/models/{args.llm}.py"
-    else:
-        llm_path = f"../models/{args.llm}.py"
+    Interact = importlib.import_module(f"ai_stream_interact.models.{args.llm}").ModelInteract
 
-    LLM_MODULE = SourceFileLoader("module.name", llm_path).load_module()
-
-    llm = LLM_MODULE.ModelInteract(
+    llm_interact = Interact(
         interaction_frames_config=interaction_frames_config,
         tts_model_name=tts_model_name
     )
-    llm.start()
+    llm_interact.start()
 
 
 if __name__ == '__main__':
