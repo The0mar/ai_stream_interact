@@ -140,7 +140,7 @@ class AIStreamInteractBase:
 
     @interact_on_key("i")
     def _switch_to_interactive_mode(self):
-        self.console.print("Running in interact mode.")
+        self._console_interface.print("Running in interact mode.")
         self.ai_interactive_mode()
 
     @interact_on_key("m")
@@ -151,8 +151,8 @@ class AIStreamInteractBase:
         """Entry point menu"""
         welcome = """# Welcome to AI Stream Interact!"""
         md = Markdown(welcome, style="bold #e079d4")
-        self.console.print("\n\n")
-        self.console.print(md)
+        self._console_interface.print("\n\n")
+        self._console_interface.print(md)
 
     def _choose_mode(self) -> None:
         """Choose mode menu"""
@@ -185,10 +185,10 @@ class AIStreamInteractBase:
             if self.streamer._video_stream_is_stopped:
                 self.streamer.start_video_stream()
             self._start_key_listeners()
-            self.console.print("Running in detect mode. Press (d) to detect an object")
+            self._console_interface.print("Running in detect mode. Press (d) to detect an object")
 
         if self._mode.startswith("i"):
-            self.console.print("Running in interact mode. Type 'exit' to go back to previous menu.")
+            self._console_interface.print("Running in interact mode. Type 'exit' to go back to previous menu.")
             self.ai_interactive_mode()
 
         if self._mode.startswith("q"):
@@ -215,8 +215,8 @@ class AIStreamInteractBase:
                 if streamer._success:
                     self._console_success.print("Cam detected successfully...")
                     break
-                self.console.print("Unable to detect cam at this index, please try again", style="bold red")
-            self.console.print("Cam index must be an integer.", style="bold red")
+                self._console_warning.print("Unable to detect cam at this index, please try again", style="bold red")
+            self._console_warning.print("Cam index must be an integer.", style="bold red")
         return streamer, cam_index
 
     def _start_key_listeners(self) -> None:

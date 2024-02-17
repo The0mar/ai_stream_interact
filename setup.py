@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as readme_file:
 
 setup(
     name="ai_stream_interact",
-    version='0.0.6',
+    version='0.0.8',
     author='Omar Aref',
     author_email='oa_dev_acc_92@hotmail.com',
     description='An model agnostic extensible package that allows for AI & LLM interactions on a video stream',
@@ -27,7 +27,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'aisi_gemini=ai_stream_interact.models.google.gemini.model:main'
+            'aisi=ai_stream_interact.runners.run_ai:main'
         ]
     },
     keywords=['python', 'ai', 'llm', 'artificial intelligence', 'large language models', 'nlp', 'natural language processing', 'video', 'video stream'],

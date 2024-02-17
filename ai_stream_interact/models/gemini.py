@@ -4,13 +4,11 @@ from dataclasses import dataclass
 
 import backoff
 from PIL import Image
-from rich.console import Console
 import google.generativeai as genai
 from ratelimit import limits, RateLimitException
 from google.ai.generativelanguage import Content
 
-from ai_stream_interact.ai_interact_base import AIStreamInteractBase
-from ai_stream_interact.ai_interact_base import InteractionFramesConfig
+from ai_stream_interact.base.ai_interact_base import AIStreamInteractBase, InteractionFramesConfig
 
 
 DEFAULT_SAFETY_SETTINGS = [
@@ -53,7 +51,7 @@ class RateLimitsConfig:
 gemini_ratelimits_config = RateLimitsConfig(calls=1, period=2, max_retries=5)
 
 
-class GeminiStreamInteract(AIStreamInteractBase):
+class ModelInteract(AIStreamInteractBase):
     """Implements Google's gemini-pro models interactions. For now implements text, image and text + image interactions."""
 
     def __init__(
@@ -69,7 +67,6 @@ class GeminiStreamInteract(AIStreamInteractBase):
         # self._ai_auth(self.__api_key)
         self.text_model = genai.GenerativeModel('gemini-pro')
         self.multimodal_model = genai.GenerativeModel('gemini-pro-vision')
-        self.console = Console()
 
     def _ai_interactive_mode(
         self,
