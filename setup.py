@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as readme_file:
 
 setup(
     name="ai_stream_interact",
-    version='0.0.8',
+    version='0.0.9',
     author='Omar Aref',
     author_email='oa_dev_acc_92@hotmail.com',
     description='An model agnostic extensible package that allows for AI & LLM interactions on a video stream',
