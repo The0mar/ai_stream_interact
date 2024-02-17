@@ -126,6 +126,7 @@ class AIStreamInteractBase:
 
     def ai_interactive_mode(self) -> None:
         while True:
+            self._stop_key_listeners()
             prompt = Prompt.ask("Prompt", console=self._console_user_prompt)
             if prompt == "exit":
                 break
@@ -135,7 +136,9 @@ class AIStreamInteractBase:
 
     @interact_on_key("c")
     def ai_custom_prompt_detect_object_mode(self) -> None:
+        self._stop_key_listeners()
         self.custom_base_prompt = Prompt.ask("Custom Prompt", console=self._console_user_prompt)
+        self._start_key_listeners()
 
     @interact_on_key("i")
     def _switch_to_interactive_mode(self):
