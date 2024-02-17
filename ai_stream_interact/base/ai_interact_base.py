@@ -117,7 +117,6 @@ class AIStreamInteractBase:
             self._console_model_output.print(out)
             if self._running_with_speech_synthesis:
                 self._speech_synthesis_queue.put(out)
-                time.sleep(0.2)
 
     @interact_on_key("d")
     def ai_detect_object_mode(self) -> None:
