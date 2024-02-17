@@ -4,14 +4,6 @@ import importlib
 from ai_stream_interact.base.ai_interact_base import InteractionFramesConfig
 
 
-def _import_from_string(name):
-    components = name.split('.')
-    mod = __import__(components[0])
-    for comp in components[1:]:
-        mod = getattr(mod, comp)
-    return mod
-
-
 def main():
     parser = argparse.ArgumentParser("AI Stream Interact")
     parser.add_argument(
